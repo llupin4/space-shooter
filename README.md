@@ -4,6 +4,12 @@ A top-down space shooter game built with Phaser 3 and Vite.
 
 **Built by Qwen 3.5 27B using OpenCode**
 
+## 🎮 Play Online
+
+[**https://llupin4.github.io/space-shooter/**](https://llupin4.github.io/space-shooter/)
+
+> **Note:** To enable GitHub Pages, go to your repository settings → Pages → Select `gh-pages` branch → Save
+
 ## Features
 
 ### Gameplay
