@@ -27,7 +27,7 @@ export class PhaserConfig {
       physics: {
         default: 'arcade',
         arcade: {
-          debug: false
+          gravity: { y: 0 }
         }
       }
     };

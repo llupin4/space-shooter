@@ -235,9 +235,67 @@ This document summarizes the complete development and testing process of the Spa
 # Start dev server in background
 npm run dev > /tmp/vite.log 2>&1 &
 
+# Run all tests
+npm test
+
+# Run individual tests
+npm run test:wasd
+npm run test:mouse
+
 # Run validation test
 node test-validation.cjs
 ```
+
+---
+
+## Development Workflow
+
+### Running the Dev Server
+
+To run the development server in the background (allowing you to continue using the terminal):
+
+```bash
+npm run dev &
+```
+
+This will:
+- Start the Vite dev server
+- Run it in the background (detached from current shell)
+- Allow you to continue using the terminal for tests or other commands
+- Typically serves on http://localhost:5173
+
+To stop the background process:
+
+```bash
+# Find the process ID
+pgrep -f "vite"
+
+# Kill by PID (replace 12345 with actual PID)
+kill 12345
+
+# Or kill all vite processes
+pkill -f "vite"
+```
+
+### Testing While Developing
+
+1. Start the dev server in background:
+   ```bash
+   npm run dev &
+   ```
+
+2. Wait for server to start (~2 seconds)
+
+3. Run tests:
+   ```bash
+   npm test
+   ```
+
+4. View the game in browser at http://localhost:5173
+
+5. Make code changes (Vite auto-reloads)
+
+6. Re-run tests to validate changes
 
 ---
 
@@ -402,21 +460,24 @@ update(time, delta) {
 
 ```
 game-test-1/
-├── index.html              # HTML entry point with styled UI
-├── main.js                 # Application entry point
-├── phaser-config.js        # Phaser game configuration
-├── space-shooter-scene.js  # Main game scene with all logic
-├── vite.config.js          # Vite build configuration
-├── package.json            # Project dependencies
-├── .gitignore             # Git ignore rules
-├── README.md              # Project documentation
-├── DEVELOPMENT.md         # This file
-├── test-browser.cjs       # Browser error tests
-├── test-game.cjs          # Game state tests
-├── test-enemies.cjs       # Enemy spawning tests
-├── test-mouse-controls.cjs # Mouse control tests
-├── test-smooth-mouse.cjs  # Smooth movement tests
-└── test-validation.cjs    # Full validation suite
+    ├── index.html              # HTML entry point with styled UI
+    ├── main.js                 # Application entry point
+    ├── phaser-config.js        # Phaser game configuration
+    ├── space-shooter-scene.js  # Main game scene with all logic
+    ├── vite.config.js          # Vite build configuration
+    ├── package.json            # Project dependencies
+    ├── .gitignore             # Git ignore rules
+    ├── README.md              # Project documentation
+    ├── DEVELOPMENT.md         # This file
+    ├── run-all-tests.cjs      # Complete test runner with colored output
+    ├── test-wasd-controls.cjs # WASD keyboard controls validation
+    ├── test-mouse-follow.cjs  # Mouse follow behavior validation
+    ├── test-browser.cjs       # Browser error tests
+    ├── test-game.cjs          # Game state tests
+    ├── test-enemies.cjs       # Enemy spawning tests
+    ├── test-mouse-controls.cjs # Mouse control tests
+    ├── test-smooth-mouse.cjs  # Smooth movement tests
+    └── test-validation.cjs    # Full validation suite
 ```
 
 ---
@@ -450,13 +511,75 @@ game-test-1/
 
 - [ ] Power-ups (rapid fire, shields, extra lives)
 - [ ] Multiple enemy types with different behaviors
-- [ ] Boss battles
+- [x] Boss battles (implemented)
 - [ ] High score persistence (localStorage)
 - [ ] Mobile touch controls
 - [ ] Particle effects for explosions
 - [ ] Background music
 - [ ] Difficulty progression
 - [ ] Level system
+
+---
+
+## Boss Battle Implementation Notes
+
+### Boss Enemy Movement Fix
+
+**Problem:** Boss-spawned enemies were not moving after being created
+
+**Root Cause:** Boss enemies were added to the physics group but didn't have `wavePattern` set, so they never had their velocity updated in the `updateEnemyWavePatterns()` method
+
+**Solution:**
+1. Set `wavePattern = { type: 'straight' }` on boss-spawned enemies
+2. Set `initialVelocityX` and `initialVelocityY` to preserve their initial direction
+3. Modified `updateEnemyWavePatterns()` to preserve initial velocity for "straight" pattern enemies
+
+**Implementation:**
+```javascript
+// When spawning boss enemies
+enemy.setVelocity(0, velocity);
+enemy.initialVelocityX = 0;
+enemy.initialVelocityY = velocity;
+enemy.wavePattern = { type: 'straight' };
+
+// For wave enemies that fly outward
+const velocityX = Math.cos(angle) * speed;
+const velocityY = Math.sin(angle) * speed + speed;
+enemy.setVelocity(velocityX, velocityY);
+enemy.initialVelocityX = velocityX;
+enemy.initialVelocityY = velocityY;
+enemy.wavePattern = { type: 'straight' };
+```
+
+**Key Insight:** The `updateEnemyWavePatterns()` method updates enemy velocity every frame. For "straight" pattern, it now uses `initialVelocityX` to preserve the enemy's original direction instead of forcing X velocity to 0.
+
+### Bullet Movement Fix
+
+**Problem:** Player bullets were created but not moving
+
+**Root Cause:** Changed `this.bullets` from `this.add.group()` to `this.physics.add.group()`, which interfered with physics updates
+
+**Solution:** Changed back to `this.add.group()` for bullets
+
+**Implementation:**
+```javascript
+// In create()
+this.bullets = this.add.group();
+this.enemies = this.physics.add.group();
+```
+
+**Key Insight:** Physics sprites created with `physics.add.sprite()` are updated by the physics world automatically. The group they're added to is just for organization. Using `physics.add.group()` can interfere with this automatic update, so use regular `add.group()` for grouping physics sprites.
+
+### Boss Battle Features
+
+- Boss appears after clearing Wave 3
+- Boss moves left/right using sine wave motion
+- Boss has 100 HP with health bar at top of screen
+- Boss spawns single enemies every 1.5 seconds
+- Boss spawns waves of 6 enemies every 5 seconds
+- Regular enemies still spawn during boss battle
+- When boss HP reaches 0, next wave starts
+- Boss battle text displays at center of screen
 
 ---
 

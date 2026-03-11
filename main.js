@@ -5,3 +5,4 @@ const config = new PhaserConfig();
 config.init();
 
 const game = new Phaser.Game(config.getConfig());
+window.game = game;
